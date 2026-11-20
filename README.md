@@ -19,6 +19,57 @@ compose.yaml      Local and OCI worker deployment
 infra/oci/        OCI Compute deployment instructions
 ```
 
+## Architecture
+
+```mermaid
+flowchart LR
+    Gmail["Gmail<br/>new or updated email"]
+    Topic["Google Pub/Sub<br/>topic"]
+    Subscription["Pub/Sub<br/>pull subscription"]
+
+    subgraph Worker["Dockerized Python worker"]
+        Subscriber["Pub/Sub subscriber"]
+        History["Gmail History API<br/>find changed messages"]
+        Fetch["Gmail API<br/>fetch message content"]
+        Extract["Parse and classify<br/>Gemini, Groq fallback"]
+        Validate["Pydantic<br/>validate application fields"]
+        Cursor[("SQLite<br/>history cursor")]
+    end
+
+    Sheets["Google Sheets<br/>deduplicated application row"]
+    Neo4j["Neo4j<br/>company, role, application graph"]
+
+    subgraph Desktop["Local desktop"]
+        Claude["Claude Desktop"]
+        MCP["Read-only FastMCP server"]
+    end
+
+    Gmail -->|"watch notification:<br/>account and history ID"| Topic
+    Topic --> Subscription
+    Subscription -->|"worker pulls notification"| Subscriber
+    Subscriber --> History
+    History --> Fetch
+    Fetch --> Extract
+    Extract --> Validate
+    Validate -->|"source email ID prevents duplicates"| Sheets
+    Validate -->|"MERGE graph records"| Neo4j
+    Subscriber -->|"save cursor after success"| Cursor
+    Subscriber -->|"acknowledge after success"| Subscription
+
+    Claude <-->|"MCP over local stdio"| MCP
+    MCP -->|"read-only queries"| Neo4j
+```
+
+Gmail's notification contains a mailbox address and a history ID, not the full
+email. The worker uses Gmail history to find changed message IDs, then fetches the
+messages from Gmail. It validates extracted job details before saving them. If
+processing fails, the worker does not acknowledge the Pub/Sub message, allowing
+Pub/Sub to deliver it again.
+
+The MCP server is a separate local process for Claude Desktop; it reads application
+records from Neo4j and does not access Gmail. The worker uses a pull subscription;
+there is no Cloud Function or HTTP push endpoint in this architecture.
+
 ## Getting started
 
 Requirements: Python 3.11 or newer.
