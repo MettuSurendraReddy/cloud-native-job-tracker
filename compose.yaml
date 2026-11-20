@@ -1,0 +1,51 @@
+services:
+  worker:
+    build:
+      context: .
+    image: job-tracker-worker:local
+    init: true
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google-credentials
+      GMAIL_CLIENT_SECRETS_FILE: /run/secrets/gmail-oauth-client
+      GMAIL_TOKEN_FILE: /run/secrets/gmail-token
+      HISTORY_CURSOR_DB: /var/lib/job-tracker/tracker.sqlite3
+    secrets:
+      - google-credentials
+      - gmail-oauth-client
+      - gmail-token
+    volumes:
+      - tracker-state:/var/lib/job-tracker
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  mcp:
+    image: job-tracker-worker:local
+    entrypoint: ["job-tracker-mcp"]
+    env_file:
+      - .env
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+secrets:
+  google-credentials:
+    file: ${GOOGLE_CREDENTIALS_FILE:-.secrets/google-service-account.json}
+  gmail-oauth-client:
+    file: ${GMAIL_OAUTH_CLIENT_FILE:-.secrets/gmail-oauth-client.json}
+  gmail-token:
+    file: ${GMAIL_OAUTH_TOKEN_FILE:-.secrets/gmail-token.json}
+
+volumes:
+  tracker-state:

@@ -1,0 +1,1 @@
+"""Background email processing worker."""

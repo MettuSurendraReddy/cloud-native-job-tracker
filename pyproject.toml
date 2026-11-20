@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cloud-job-tracker"
+version = "0.1.0"
+description = "Event-driven job application email tracker"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastmcp",
+    "google-api-python-client",
+    "google-auth",
+    "google-auth-oauthlib",
+    "google-cloud-pubsub",
+    "google-genai",
+    "groq",
+    "httpx",
+    "neo4j",
+    "pydantic>=2.0",
+    "pydantic-settings",
+    "python-dotenv",
+]
+
+[project.scripts]
+job-tracker-worker = "job_tracker.worker.__main__:main"
+job-tracker-mcp = "job_tracker.mcp_server.server:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
